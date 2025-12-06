@@ -1,0 +1,300 @@
+#  Speaker
+
+#  led   GPIO14   bl
+
+#  LRC   GPIO11   pk
+#  BLC   GPIO9    ye
+#  Dout  GPIO7    vi
+
+substitutions:
+
+  name: your-name
+  friendly_name: Your Name 
+  i2s_lrclk: GPIO11
+  i2s_bclk: GPIO09
+  spk: GPIO07
+  ledpin: GPIO48   #14
+  ota_password: "stuff"
+  key_encryption: "stuff"
+  wifi_ssid: !secret wifi_ssid
+  wifi_password: !secret wifi_password
+  wifi_ssid_2: !secret wifi_ssid_another
+  wifi_password_2: !secret wifi_password_another
+  red: 100%
+  green: 0%
+  blue: 0% 
+  rgb: GRB
+  chip: WS2812  #WS2812 / APA106
+  psram: octal
+  task: false
+  bufdur: 100ms
+  bufsize: 2000000
+
+wifi:
+  networks:
+  - ssid: ${wifi_ssid}
+    password: ${wifi_password}
+  - ssid: ${wifi_ssid_2}
+    password: ${wifi_password_2}
+ # manual_ip:
+ #   static_ip: 192.168.1.84
+ #   gateway: 192.168.1.254
+ #   subnet: 255.255.255.0
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
+esp32:
+  board: esp32-s3-devkitc-1
+  cpu_frequency: 240MHz
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+    version: recommended
+  
+    sdkconfig_options:
+      CONFIG_BT_ALLOCATION_FROM_SPIRAM_FIRST: "y"
+      CONFIG_BT_BLE_DYNAMIC_ENV_MEMORY: "y"
+      CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC: "y"
+      CONFIG_MBEDTLS_SSL_PROTO_TLS1_3: "y"  # TLS1.3 support isn't enabled by default in IDF 5.1.5
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
+      CONFIG_SPIRAM_RODATA: "y"
+      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: "y"
+
+
+# Enable logging
+logger:
+ # level: DEBUG
+#  logs:
+ #   sensor: WARN  # avoids logging debug sensor updates
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: ${key_encryption}
+
+ota:
+  - platform: esphome
+    password: ${ota_password}
+
+psram:
+  mode: ${psram}
+  speed: 80MHz
+
+external_components:
+  - source:
+      # https://github.com/esphome/esphome/pull/12253
+      type: git
+      url: https://github.com/esphome/esphome
+      ref: 869d4517d7f7f9e682c6bbd0a21f52bed088e0e3
+    components: [mixer]
+  - source:
+      # https://github.com/esphome/esphome/pull/12254
+      type: git
+      url: https://github.com/esphome/esphome
+      ref: 1ab4b990092ae063a16cb1511a188c536fdb336e
+    components: [resampler]
+  - source:
+      # https://github.com/esphome/esphome/pull/12256
+      type: git
+      url: https://github.com/esphome/esphome
+      ref: c3da68d40c2699cba9f46d5b5fd25cda954ad95c
+    components: [audio]
+  - source:
+      # https://github.com/esphome/esphome/pull/12258
+      type: git
+      url: https://github.com/esphome/esphome
+      ref: bff22983a390352360796f8e1363127e0cd1f898
+    components: [media_player]
+  - source:
+      # https://github.com/esphome/esphome/pull/12284
+      type: git
+      url: https://github.com/esphome/esphome
+      ref: 4c508febae17fc54c86723a1c1e8b7d11c18ab34
+    components: [mdns, sendspin]
+
+sendspin:
+  id: sendspin_hub
+  task_stack_in_psram: true
+  kalman_process_error: 0.01
+
+i2s_audio:
+  - id: i2s_output
+    i2s_lrclk_pin: 
+      number: ${i2s_lrclk}
+    i2s_bclk_pin:  
+      number: ${i2s_bclk}
+
+speaker:
+  - platform: i2s_audio
+    id: output_speaker
+    i2s_dout_pin:   
+      number: ${spk}
+    dac_type: external    
+    bits_per_sample: 16bit
+    channel: mono
+    buffer_duration: ${bufdur}
+    timeout: never
+    sample_rate: 48000
+ 
+ # Virtual speakers to combine the announcement and media streams together into one output
+  - platform: mixer
+    id: mixing_speaker
+    output_speaker: output_speaker
+    num_channels: 1
+    task_stack_in_psram: ${task}
+    source_speakers:
+      - id: announcement_mixing_input
+        timeout: never
+      - id: media_mixing_input
+        timeout: never
+      - id: sendspin_mixing_input
+        timeout: never
+        buffer_duration: ${bufdur}
+
+  # Vritual speakers to resample each pipelines' audio, if necessary, as the mixer speaker requires the same sample rate
+  - platform: resampler
+    id: announcement_resampling_speaker
+    output_speaker: announcement_mixing_input
+    sample_rate: 48000
+    bits_per_sample: 16
+  - platform: resampler
+    id: media_resampling_speaker
+    output_speaker: media_mixing_input
+    sample_rate: 48000
+    bits_per_sample: 16
+  - platform: resampler
+    id: sendspin_resampling_speaker
+    output_speaker: sendspin_mixing_input
+    # output_speaker: i2s_audio_speaker
+    task_stack_in_psram: true
+    sample_rate: 48000
+    bits_per_sample: 16
+
+media_player:
+
+  - platform: speaker
+    id: external_media_player
+    name: "player"
+    internal: False
+    task_stack_in_psram: ${task}
+    volume_increment: 0.05
+    volume_min: 0.4
+    volume_max: 0.85
+
+    announcement_pipeline:
+      speaker: announcement_resampling_speaker
+      format: FLAC     # FLAC is the least processor intensive codec
+      num_channels: 2  # Stereo audio is unnecessary for announcements
+      sample_rate: 48000
+    media_pipeline:
+      speaker: media_resampling_speaker
+      format: FLAC    # FLAC is the least processor intensive codec
+      num_channels: 2
+      sample_rate: 48000
+    on_announcement:
+      - mixer_speaker.apply_ducking:
+          id: media_mixing_input
+          decibel_reduction: 20
+          duration: 0.0s
+      - mixer_speaker.apply_ducking:
+          id: sendspin_mixing_input
+          decibel_reduction: 20
+          duration: 0.0s
+
+    on_play:              
+        then:
+        - light.turn_on:
+            brightness: 100%
+            red: ${red}
+            green: ${green}
+            blue: ${blue}
+            id: led
+
+    on_idle:              
+        then:
+        - light.turn_off:
+            id: led            
+
+  - platform: sendspin
+    id: sendspin_media_player
+    name: ${name} Sendspin
+    speaker: sendspin_resampling_speaker
+    task_stack_in_psram: true
+    volume_min: 0.4
+    volume_max: 0.85
+
+    on_play:               
+        then:
+        - light.turn_on:
+            brightness: 100%
+            red: ${red}
+            green: ${green}
+            blue: ${blue}
+            id: led
+
+    on_idle:              
+        then:
+        - light.turn_off:
+            id: led            
+
+switch:
+  - platform: restart
+    name: "${name} Reboot"
+    id: reboot_media_player_lab_reboot
+
+sensor:
+  - platform: wifi_signal
+    name: "${name} WiFi Signal Sensor"
+    update_interval: 60s 
+
+light:
+  - platform: esp32_rmt_led_strip
+    rgb_order: ${rgb}
+    pin: ${ledpin}
+    num_leds: 4
+    chipset: WS2812
+    name: "${name} LED"
+    id: led
+    disabled_by_default: false
+    #entity_category: diagnostic
+    icon: mdi:led-on
+    default_transition_length: 0s
+    effects:
+      - pulse:
+          name: "Slow Pulse"
+          transition_length: 150ms
+          update_interval: 150ms
+          min_brightness: 20%
+          max_brightness: 100%
+      - pulse:
+          name: "Fast Pulse"
+          transition_length: 150ms
+          update_interval: 150ms
+          min_brightness: 20%
+          max_brightness: 100%
+
+text_sensor:
+  - platform: sendspin
+    type: title
+    name: Track Title
+  
+  - platform: sendspin
+    type: artist
+    name: Artist
+  
+  - platform: sendspin
+    type: album
+    name: Album
+  
+  - platform: sendspin
+    type: year
+    name: Year
+  
+  - platform: sendspin
+    type: track
+    name: Track Number
+
