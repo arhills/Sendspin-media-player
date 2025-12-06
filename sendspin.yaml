@@ -36,10 +36,6 @@ wifi:
     password: ${wifi_password}
   - ssid: ${wifi_ssid_2}
     password: ${wifi_password_2}
- # manual_ip:
- #   static_ip: 192.168.1.84
- #   gateway: 192.168.1.254
- #   subnet: 255.255.255.0
 
 esphome:
   name: ${name}
