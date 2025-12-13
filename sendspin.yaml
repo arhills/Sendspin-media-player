@@ -264,4 +264,4 @@ light:
           min_brightness: 20%
           max_brightness: 100%
 
-
+http_request:
