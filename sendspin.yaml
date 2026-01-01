@@ -30,19 +30,23 @@ substitutions:
   bufdur: 100ms
   bufsize: 2000000
 
-substitutions:
   task: false
-  bufdur: 400ms
-  bufsize: 1000000
+  bufdur: 0ms
+  bufsize: 500000
 
 wifi:
+  power_save_mode: none
   networks:
   - ssid: ${wifi_ssid}
     password: ${wifi_password}
   - ssid: ${wifi_ssid_2}
     password: ${wifi_password_2}
+
+network:
+  enable_high_performance: true
+
  # manual_ip:
- #   static_ip: 192.168.1.84
+ #   static_ip: ${ipaddress}
  #   gateway: 192.168.1.254
  #   subnet: 255.255.255.0
 
@@ -57,18 +61,7 @@ esp32:
   flash_size: ${flash}
   framework:
     type: esp-idf
-    version: recommended
-  
-    sdkconfig_options:
-      CONFIG_BT_ALLOCATION_FROM_SPIRAM_FIRST: "y"
-      CONFIG_BT_BLE_DYNAMIC_ENV_MEMORY: "y"
-      CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC: "y"
-      CONFIG_MBEDTLS_SSL_PROTO_TLS1_3: "y"  # TLS1.3 support isn't enabled by default in IDF 5.1.5
-      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
-      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
-      CONFIG_SPIRAM_RODATA: "y"
-      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: "y"
-
+    version: 5.5.1    ## recommended
 
 # Enable logging
 logger:
@@ -90,48 +83,28 @@ psram:
   speed: 80MHz
 
 external_components:
-  - source:
-      # https://github.com/esphome/esphome/pull/12253
-      type: git
-      url: https://github.com/esphome/esphome
-      ref: 0fe230114c80b6d3378f04c777baadee178e40ad
-    components: [mixer]
-  - source:
-      # https://github.com/esphome/esphome/pull/12254
-      type: git
-      url: https://github.com/esphome/esphome
-      ref: 1ab4b990092ae063a16cb1511a188c536fdb336e
-    components: [resampler]
-  - source:
-      # https://github.com/esphome/esphome/pull/12256
-      type: git
-      url: https://github.com/esphome/esphome
-      ref: 047ba60f01af84513f8d5aabaa2a53074facee8f
-    components: [audio]
-  - source:
-      # https://github.com/esphome/esphome/pull/12258
-      type: git
-      url: https://github.com/esphome/esphome
-      ref: bff22983a390352360796f8e1363127e0cd1f898
-    components: [media_player]
-  - source:
-      # https://github.com/esphome/esphome/pull/12284
-      type: git
-      url: https://github.com/esphome/esphome
-      ref: 833f7b813dcca5296b0fe81a880f1754b3ab1a35
-    components: [mdns, sendspin]
-  - source:
-      # https://github.com/esphome/esphome/pull/12429
-      type: git
-      url: https://github.com/esphome/esphome
-      ref: 72499eaed2ed54316aca90d368053aa2e1a54f5f
+  - source: github://pr#12284
+    components: [generic_image, mdns, sendspin]
+    refresh: 1h
+  - source: github://pr#12253
+    components: [ mixer ]
+  - source: github://pr#12254
+    components: [ resampler ]
+  - source: github://pr#12256
+    components: [ audio ]
+  - source: github://pr#12258
+    components: [ media_player ]
+  - source: github://pr#10212
+    components: [runtime_image, online_image]
     refresh: 0s
-    components: [file, http_request, media_source, speaker_source]
+  - source: github://pr#12429
+    components: [media_source, http_request, speaker_source]
+    refresh: 0s
 
 sendspin:
   id: sendspin_hub
   task_stack_in_psram: ${task}
-  kalman_process_error: 0.01
+ # kalman_process_error: 0.01
 
 i2s_audio:
   - id: i2s_output
@@ -150,7 +123,7 @@ speaker:
     bits_per_sample: 16bit
  #   i2s_audio_id: i2s_output
     dac_type: external
-    channel: mono
+    channel: stereo
     timeout: never
     buffer_duration: ${bufdur}
 
@@ -181,19 +154,19 @@ speaker:
 media_source:
   - platform: sendspin
     id: sendspin_source
-#  - platform: http_request
-#    id: http_source
-##   buffer_size: 131072
+  - platform: http_request
+    id: http_source
+    buffer_size: ${bufsize}
  # - platform: file
  #   id: file_source
 
 media_player:
   - platform: sendspin
-    id: sendspin_media_player
-    name: Sendspin Group Media Player
+    id: player
+    name: Group Player
   - platform: speaker_source
     id: external_media_player
-    name: Media Player
+    name: Player
     internal: False
     announcement_speaker: announcement_resampling_speaker
     media_speaker: media_resampling_speaker
@@ -202,7 +175,7 @@ media_player:
     volume_max: ${volmax}
     sources:
      # - file_source
-    #  - http_source
+      - http_source
       - sendspin_source
 
     announcement_pipeline:
@@ -228,14 +201,15 @@ media_player:
         - light.turn_off:
             id: led    
 
+
 switch:
   - platform: restart
-    name: "${name} Reboot"
+    name: Reboot
     id: reboot_media_player_lab_reboot
 
 sensor:
   - platform: wifi_signal
-    name: "${name} WiFi Signal Sensor"
+    name: WiFi
     update_interval: 60s 
 
 light:
@@ -244,7 +218,7 @@ light:
     pin: ${ledpin}
     num_leds: 4
     chipset: WS2812
-    name: "${name} LED"
+    name: LED
     id: led
     disabled_by_default: false
     #entity_category: diagnostic
@@ -265,3 +239,22 @@ light:
           max_brightness: 100%
 
 http_request:
+
+text_sensor:
+- platform: wifi_info
+ # ip_address:
+#    name: Device IP Address
+#    address_0:
+#      name: Device IP Address 0
+  ssid:
+    name: Device Connected SSID
+ # bssid:
+ #   name: Device Connected BSSID
+ # mac_address:
+ #   name: Device Mac Wifi Address
+  scan_results:
+    name: Device Latest Scan Results
+#  dns_address:
+ #   name: Device DNS Address
+  power_save_mode:
+    name: Device Wifi Power Save Mode
