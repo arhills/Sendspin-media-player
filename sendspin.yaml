@@ -31,11 +31,10 @@ substitutions:
   bufsize: 2000000
 
   task: false
-  bufdur: 0ms
-  bufsize: 500000
+  bufdur: 100ms
+  bufsize: 200000
 
 wifi:
-  power_save_mode: none
   networks:
   - ssid: ${wifi_ssid}
     password: ${wifi_password}
@@ -61,7 +60,18 @@ esp32:
   flash_size: ${flash}
   framework:
     type: esp-idf
-    version: 5.5.1    ## recommended
+    version: recommended
+
+    sdkconfig_options:
+      CONFIG_BT_ALLOCATION_FROM_SPIRAM_FIRST: "y"
+      CONFIG_BT_BLE_DYNAMIC_ENV_MEMORY: "y"
+      CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC: "y"
+      CONFIG_MBEDTLS_SSL_PROTO_TLS1_3: "y"  # TLS1.3 support isn't enabled by default in IDF 5.1.5
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
+      CONFIG_SPIRAM_RODATA: "y"
+      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: "y"
+  #    CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB: "y"
 
 # Enable logging
 logger:
@@ -77,6 +87,10 @@ api:
 ota:
   - platform: esphome
     password: ${ota_password}
+  - platform: web_server
+
+web_server:
+  port: 80
 
 psram:
   mode: ${psram}
@@ -101,6 +115,14 @@ external_components:
     components: [media_source, http_request, speaker_source]
     refresh: 0s
 
+globals:
+  - id: current_volume
+    type: float
+    initial_value: '0.2'
+  - id: announcement_triggered
+    type: bool
+    initial_value: 'false'
+
 sendspin:
   id: sendspin_hub
   task_stack_in_psram: ${task}
@@ -120,7 +142,7 @@ speaker:
  #   i2s_mode: secondary
     i2s_dout_pin:   
       number: ${spk}
-    bits_per_sample: 16bit
+    bits_per_sample: 32bit
  #   i2s_audio_id: i2s_output
     dac_type: external
     channel: stereo
@@ -195,12 +217,41 @@ media_player:
             green: ${green}
             blue: ${blue}
             id: led
+            effect: none
 
     on_idle:              
         then:
         - light.turn_off:
-            id: led    
+            id: led   
 
+    on_announcement:
+        then:
+        - light.turn_on:
+            brightness: 100%
+            red: ${reda}
+            green: ${greena}
+            blue: ${bluea}
+            id: led
+            effect: fast pulse
+        - mixer_speaker.apply_ducking:
+            id: media_mixing_input
+            decibel_reduction: 20
+            duration: 0.0s
+
+
+    on_state:
+      if:
+        condition:
+          and:
+            - lambda: return (!id(announcement_triggered));
+            - not:
+                media_player.is_announcing: external_media_player
+        then:
+          - mixer_speaker.apply_ducking:
+              id: media_mixing_input
+              decibel_reduction: 0
+              duration: 1.0s
+ 
 
 switch:
   - platform: restart
@@ -258,3 +309,5 @@ text_sensor:
  #   name: Device DNS Address
   power_save_mode:
     name: Device Wifi Power Save Mode
+
+
