@@ -32,7 +32,7 @@ substitutions:
 
   task: false
   bufdur: 100ms
-  bufsize: 200000
+  bufsize: 500000
 
 wifi:
   networks:
