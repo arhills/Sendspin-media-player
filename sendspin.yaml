@@ -95,6 +95,7 @@ web_server:
 psram:
   mode: ${psram}
   speed: 80MHz
+  ignore_not_found: false 
 
 external_components:
   - source: github://pr#12284
@@ -114,6 +115,12 @@ external_components:
   - source: github://pr#12429
     components: [media_source, http_request, speaker_source]
     refresh: 0s
+  - source:
+      type: git
+      url: https://github.com/kahrendt/esphome
+      ref: wifi-power-save-wake-loop
+    refresh: 0s
+    components: [wifi]
 
 globals:
   - id: current_volume
@@ -308,6 +315,4 @@ text_sensor:
 #  dns_address:
  #   name: Device DNS Address
   power_save_mode:
-    name: Device Wifi Power Save Mode
-
-
+    name: Device Wifi Power Save Mod
