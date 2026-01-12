@@ -86,8 +86,8 @@ api:
 
 ota:
   - platform: esphome
-    password: ${ota_password}
-  - platform: web_server
+#    password: ${ota_password}
+#  - platform: web_server
 
 #web_server:
 #  port: 80
