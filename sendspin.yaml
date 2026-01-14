@@ -23,16 +23,20 @@ substitutions:
   red: 100%
   green: 0%
   blue: 0% 
-  rgb: GRB
+  reda: 0%
+  greena: 100%
+  bluea: 0% 
+  rgb: RGB
   chip: WS2812  #WS2812 / APA106
   psram: octal
-  task: false
-  bufdur: 100ms
-  bufsize: 2000000
-
-  task: false
-  bufdur: 100ms
+  volmin: 0.4
+  volmax: 0.85
+  flash: 16mb
+  ipaddress: 192.168.1.155
   bufsize: 500000
+  task: false
+  bufdur: 100ms
+
 
 wifi:
   networks:
@@ -115,12 +119,9 @@ external_components:
   - source: github://pr#12429
     components: [media_source, http_request, speaker_source]
     refresh: 0s
-  - source:
-      type: git
-      url: https://github.com/kahrendt/esphome
-      ref: wifi-power-save-wake-loop
-    refresh: 0s
-    components: [wifi]
+  - source: github://pr#13190
+    components: [i2s_audio]
+    refresh: 1h
 
 globals:
   - id: current_volume
