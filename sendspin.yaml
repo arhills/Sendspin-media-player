@@ -119,9 +119,6 @@ external_components:
   - source: github://pr#12429
     components: [media_source, http_request, speaker_source]
     refresh: 0s
-  - source: github://pr#13190
-    components: [i2s_audio]
-    refresh: 1h
 
 globals:
   - id: current_volume
