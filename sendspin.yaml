@@ -37,21 +37,19 @@ substitutions:
   task: "true"
   bufdur: 100ms
 
-
 wifi:
   networks:
   - ssid: ${wifi_ssid}
     password: ${wifi_password}
   - ssid: ${wifi_ssid_2}
     password: ${wifi_password_2}
-
-network:
-  enable_high_performance: true
+  - ssid: ${wifi_ssid_3}
+    password: ${wifi_password_3}
 
  # manual_ip:
  #   static_ip: ${ipaddress}
  #   gateway: 192.168.1.254
- #   subnet: 255.255.255.0
+#    subnet: 255.255.255.0
 
 esphome:
   name: ${name}
@@ -65,23 +63,19 @@ esp32:
   framework:
     type: esp-idf
     version: recommended
-
     sdkconfig_options:
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
+      CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB: "y"
+      CONFIG_SPIRAM_RODATA: "y"
+      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: "y"
       CONFIG_BT_ALLOCATION_FROM_SPIRAM_FIRST: "y"
       CONFIG_BT_BLE_DYNAMIC_ENV_MEMORY: "y"
       CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC: "y"
-      CONFIG_MBEDTLS_SSL_PROTO_TLS1_3: "y"  # TLS1.3 support isn't enabled by default in IDF 5.1.5
-      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
-      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
-      CONFIG_SPIRAM_RODATA: "y"
-      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: "y"
-  #    CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB: "y"
+      CONFIG_MBEDTLS_SSL_PROTO_TLS1_3: "y"
 
 # Enable logging
 logger:
- # level: DEBUG
-#  logs:
- #   sensor: WARN  # avoids logging debug sensor updates
 
 # Enable Home Assistant API
 api:
@@ -90,11 +84,8 @@ api:
 
 ota:
   - platform: esphome
-#    password: ${ota_password}
+ #   password: ${ota_password}
 #  - platform: web_server
-
-#web_server:
-#  port: 80
 
 psram:
   mode: ${psram}
@@ -102,23 +93,19 @@ psram:
   ignore_not_found: false 
 
 external_components:
-  - source: github://pr#12284
-    components: [generic_image, mdns, sendspin]
-    refresh: 1h
-  - source: github://pr#12253
-    components: [ mixer ]
-  - source: github://pr#12254
-    components: [ resampler ]
-  - source: github://pr#12256
-    components: [ audio ]
-  - source: github://pr#12258
-    components: [ media_player ]
-  - source: github://pr#10212
-    components: [runtime_image, online_image]
+  - source:
+      # https://github.com/esphome/esphome/pull/12429
+      type: git
+      url: https://github.com/esphome/esphome
+      ref: a6c403deb7603d316dce2820897902e01c3695cc
     refresh: 0s
-  - source: github://pr#12429
-    components: [media_source, http_request, speaker_source]
-    refresh: 0s
+    components: [file, http_request, media_source, speaker_source]
+  - source:
+      # https://github.com/esphome/esphome/pull/12284
+      type: git
+      url: https://github.com/esphome/esphome
+      ref: 119a5c25a483c58b3d58a35c8cec95495c6491c2
+    components: [sendspin]
 
 globals:
   - id: current_volume
@@ -188,9 +175,11 @@ media_source:
  #   id: file_source
 
 media_player:
+
   - platform: sendspin
     id: player
-    name: Group Player
+    name: Group
+
   - platform: speaker_source
     id: external_media_player
     name: Player
@@ -257,7 +246,6 @@ media_player:
               decibel_reduction: 0
               duration: 1.0s
  
-
 switch:
   - platform: restart
     name: Reboot
@@ -297,20 +285,41 @@ light:
 http_request:
 
 text_sensor:
-- platform: wifi_info
- # ip_address:
-#    name: Device IP Address
-#    address_0:
-#      name: Device IP Address 0
-  ssid:
-    name: Device Connected SSID
+
+  - platform: wifi_info
+    ip_address:
+      name: Device IP Address
+    #  address_0:
+     #    name: Device IP Address 0
+    ssid:
+      name: Device Connected SSID
  # bssid:
  #   name: Device Connected BSSID
  # mac_address:
  #   name: Device Mac Wifi Address
-  scan_results:
-    name: Device Latest Scan Results
+    scan_results:
+      name: Device Latest Scan Results
 #  dns_address:
  #   name: Device DNS Address
-  power_save_mode:
-    name: Device Wifi Power Save Mod
+    power_save_mode:
+      name: Device Wifi Power Save Mode
+
+  - platform: sendspin
+    type: title
+    name: Track Title
+  
+  - platform: sendspin
+    type: artist
+    name: Artist
+  
+  - platform: sendspin
+    type: album
+    name: Album
+  
+  - platform: sendspin
+    type: year
+    name: Year
+  
+  - platform: sendspin
+    type: track
+    name: Track Number
