@@ -46,11 +46,6 @@ wifi:
   - ssid: ${wifi_ssid_3}
     password: ${wifi_password_3}
 
- # manual_ip:
- #   static_ip: ${ipaddress}
- #   gateway: 192.168.1.254
-#    subnet: 255.255.255.0
-
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
@@ -84,8 +79,6 @@ api:
 
 ota:
   - platform: esphome
- #   password: ${ota_password}
-#  - platform: web_server
 
 psram:
   mode: ${psram}
@@ -96,16 +89,16 @@ external_components:
   - source:
       # https://github.com/esphome/esphome/pull/12429
       type: git
-      url: https://github.com/esphome/esphome
-      ref: a6c403deb7603d316dce2820897902e01c3695cc
-    refresh: 0s
-    components: [file, http_request, media_source, speaker_source]
+      url: https://github.com/kahrendt/esphome
+      ref: 890e33f99af2c2ea15dc74c3ec4cf32d25203526
+    components: [const, media_source, sendspin]
   - source:
-      # https://github.com/esphome/esphome/pull/12284
+      # https://github.com/esphome/esphome/pull/12429
       type: git
       url: https://github.com/esphome/esphome
-      ref: 119a5c25a483c58b3d58a35c8cec95495c6491c2
-    components: [sendspin]
+      ref: ff8ce89556748509d7ee8724e12d9d43d3c8c1e8
+    refresh: 0s
+    components: [http_request]
 
 globals:
   - id: current_volume
@@ -131,11 +124,9 @@ speaker:
   - platform: i2s_audio
     id: i2s_audio_speaker
     sample_rate: 48000
- #   i2s_mode: secondary
     i2s_dout_pin:   
       number: ${spk}
     bits_per_sample: 32bit
- #   i2s_audio_id: i2s_output
     dac_type: external
     channel: stereo
     timeout: never
@@ -146,7 +137,7 @@ speaker:
     id: mixing_speaker
     output_speaker: i2s_audio_speaker
     num_channels: 2
-    task_stack_in_psram: ${task}
+   # task_stack_in_psram: ${task}
     source_speakers:
       - id: announcement_mixing_input
         timeout: never
@@ -166,13 +157,16 @@ speaker:
     bits_per_sample: 16
 
 media_source:
-  - platform: sendspin
-    id: sendspin_source
   - platform: http_request
-    id: http_source
+    id: http_announcement_source
+    buffer_size: 250000
+  - platform: http_request
+    id: http_media_source
     buffer_size: ${bufsize}
- # - platform: file
- #   id: file_source
+
+  - platform: sendspin
+    id: sendspin_media_source
+    fixed_delay: 480 microseconds  # The AIC3204 DAC used, as configured, on the VPE delays audio by 480 microseconds
 
 media_player:
 
@@ -184,24 +178,25 @@ media_player:
     id: external_media_player
     name: Player
     internal: False
-    announcement_speaker: announcement_resampling_speaker
-    media_speaker: media_resampling_speaker
     volume_increment: 0.05
     volume_min: ${volmin}
     volume_max: ${volmax}
-    sources:
-     # - file_source
-      - http_source
-      - sendspin_source
 
     announcement_pipeline:
       format: FLAC     # FLAC is the least processor intensive codec
       num_channels: 1  # Stereo audio is unnecessary for announcements
       sample_rate: 48000
+      speaker: announcement_resampling_speaker
+      sources:
+        - http_announcement_source
     media_pipeline:
       format: FLAC     # FLAC is the least processor intensive codec
       num_channels: 2
       sample_rate: 48000
+      speaker: media_resampling_speaker
+      sources:
+        - http_media_source
+        - sendspin_media_source
 
     on_play:               
         then:
