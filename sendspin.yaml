@@ -87,11 +87,10 @@ psram:
 
 external_components:
   - source:
-      # https://github.com/esphome/esphome/pull/12429
       type: git
-      url: https://github.com/kahrendt/esphome
-      ref: 890e33f99af2c2ea15dc74c3ec4cf32d25203526
-    components: [const, media_source, sendspin]
+      url: https://www.github.com/esphome/esphome
+      ref: dev
+    components: [sendspin]
   - source:
       # https://github.com/esphome/esphome/pull/12429
       type: git
