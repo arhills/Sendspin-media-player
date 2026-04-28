@@ -91,14 +91,7 @@ external_components:
       url: https://www.github.com/esphome/esphome
       ref: dev
     components: [sendspin]
-  - source:
-      # https://github.com/esphome/esphome/pull/12429
-      type: git
-      url: https://github.com/esphome/esphome
-      ref: ff8ce89556748509d7ee8724e12d9d43d3c8c1e8
-    refresh: 0s
-    components: [http_request]
-
+    
 globals:
   - id: current_volume
     type: float
@@ -156,10 +149,10 @@ speaker:
     bits_per_sample: 16
 
 media_source:
-  - platform: http_request
+  - platform: audio_http
     id: http_announcement_source
     buffer_size: 250000
-  - platform: http_request
+  - platform: audio_http
     id: http_media_source
     buffer_size: ${bufsize}
 
