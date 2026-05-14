@@ -85,13 +85,6 @@ psram:
   speed: 80MHz
   ignore_not_found: false 
 
-external_components:
-  - source:
-      type: git
-      url: https://www.github.com/esphome/esphome
-      ref: dev
-    components: [sendspin]
-    
 globals:
   - id: current_volume
     type: float
