@@ -1,4 +1,4 @@
-This will need compiling in the DEV branch of esphome.
+This will need compiling in the beta 5.0 or newer branch branch of esphome.
 
 This is a very early concept for testing it is not anywhere near a finsihed or completly working solution.
 
