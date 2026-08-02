@@ -34,7 +34,7 @@ substitutions:
   flash: 16mb
   ipaddress: 192.168.1.155
   bufsize: 500000
-  task: "true"
+  : "true"
   bufdur: 100ms
 
 wifi:
@@ -122,7 +122,7 @@ speaker:
     id: mixing_speaker
     output_speaker: i2s_audio_speaker
     num_channels: 2
-   # task_stack_in_psram: ${task}
+    task_stack_in_psram: ${task}
     source_speakers:
       - id: announcement_mixing_input
         timeout: never
